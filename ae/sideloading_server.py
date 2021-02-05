@@ -1,6 +1,6 @@
 """
 sideloading server
-================
+==================
 
 This ae namespace portion provides a simple http server for to download a file to another device in the same local
 network, using any web browser.
@@ -69,7 +69,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.2'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -101,6 +101,7 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     server_app.add_option('file_mask', "glob file mask for the sideloading file", DEFAULT_FILE_MASK, 'm')
 
     if task_id_func:
+        # noinspection PyTypeHints
         server_app.id_of_task = task_id_func    # type: ignore
 
     return server_app
