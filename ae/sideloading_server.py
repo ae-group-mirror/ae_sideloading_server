@@ -69,7 +69,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -240,6 +240,16 @@ class SideloadingServerApp(ConsoleApp):
             url += ":" + str(port)
         return url
 
+    def shutdown(self, exit_code: Optional[int] = 0, timeout: Optional[float] = None):
+        """ stop a running sideloading server on shutdown of this app instance.
+
+        :param exit_code:   set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
+        :param timeout:     timeout float value in seconds - see :meth:`~ae.core.AppBase.shutdown`.
+        """
+        if self.server_instance:
+            self.stop_server()
+        super().shutdown(exit_code=exit_code, timeout=SHUTDOWN_TIMEOUT)
+
     def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = lambda **_: None) -> bool:
         """ start/run http file sideloading server until get stopped via :meth:`~.stop_server` get called.
 
@@ -277,6 +287,7 @@ class SideloadingServerApp(ConsoleApp):
             SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
             assert HTTPServer.allow_reuse_address
             self.server_instance = HTTPServer(server_address, SimpleHTTPRequestHandler)
+            self.server_instance.timeout = SHUTDOWN_TIMEOUT
 
             self.log('verbose', f"{pre}: {self.file_path} (ip,port)={server_address}"
                                 f"/{self.server_instance.server_address}"
@@ -312,6 +323,7 @@ class SideloadingServerApp(ConsoleApp):
         if self.server_instance and self.server_thread:
             if self.server_thread == threading.current_thread():
                 thread = threading.Thread(name="StopSideloadingServerThread", target=self.server_instance.shutdown)
+                thread.daemon = True
                 thread.start()
                 thread.join(timeout=SHUTDOWN_TIMEOUT)
                 if thread.is_alive():
