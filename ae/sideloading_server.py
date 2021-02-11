@@ -69,7 +69,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -221,9 +221,11 @@ class SideloadingServerApp(ConsoleApp):
                 copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=SOCKET_BUF_LEN, errors=errors,
                            progress_func=self.progress_callback, progress_kwargs=progress_kwargs)
                 if errors:
-                    self.log('print', f"{pre} copy_bytes errors: {errors}")
+                    self.log('print', f"{pre} copy_bytes errors: {errors}")             # pragma: no cover
+                else:
+                    handler.progress_transferred = file_size
 
-        except (KeyError, IOError, OSError, SyntaxError, ValueError, Exception) as ex:
+        except (KeyError, IOError, OSError, SyntaxError, ValueError, Exception) as ex:  # pragma: no cover
             self.log('print', f"{pre} exception {ex} on send of {self.file_path}")
 
         else:
@@ -241,17 +243,16 @@ class SideloadingServerApp(ConsoleApp):
         return url
 
     def shutdown(self, exit_code: Optional[int] = 0, timeout: Optional[float] = None):
-        """ stop a running sideloading server on shutdown of this app instance.
+        """ overwritten for to stop any running sideloading server instance/threads on shutdown of this app instance.
 
         :param exit_code:   set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
         :param timeout:     timeout float value in seconds - see :meth:`~ae.core.AppBase.shutdown`.
         """
-        if self.server_instance:
-            self.stop_server()
-        super().shutdown(exit_code=exit_code, timeout=SHUTDOWN_TIMEOUT)
+        self.stop_server()
+        super().shutdown(exit_code=exit_code, timeout=timeout)
 
     def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = lambda **_: None) -> bool:
-        """ start/run http file sideloading server until get stopped via :meth:`~.stop_server` get called.
+        """ start http file sideloading server to run until :meth:`~.stop_server` get called.
 
         :param file_mask:       optional glob.glob file mask to specify the sideloading file. If not passed then
                                 the :data:`DEFAULT_FILE_MASK` will be used which specifies a APK file of the
@@ -259,7 +260,7 @@ class SideloadingServerApp(ConsoleApp):
                                 The sideloading server will only be started if the file mask matches exactly one file.
                                 The file path of the matched file can be accessed via the
                                 :attr:`~SideloadingServerApp.file_path` attribute.
-        :param threaded:        optionally pass True to use separate thread for the server process.
+        :param threaded:        optionally pass True to use separate thread to run the server instance.
         :param progress:        optional callback executed for each transferred/side-loaded chunk. Alternatively the
                                 method :meth:`~SideloadingServerApp.client_progress` can be used.
         :return:                True if server instance/thread got started else False.
@@ -270,10 +271,10 @@ class SideloadingServerApp(ConsoleApp):
         self.progress_callback = progress   # type: ignore
         self.log('debug', f"{pre}: {'threaded' if threaded else ''} with file mask='{file_mask}' and cb={progress}")
 
-        if clients_lock.locked():
+        if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
-        if requests_lock.locked():
+        if requests_lock.locked():  # pragma: no cover
             self.log('print', f"{pre}: releasing requests lock")
             requests_lock.release()
 
@@ -292,15 +293,15 @@ class SideloadingServerApp(ConsoleApp):
             self.log('verbose', f"{pre}: {self.file_path} (ip,port)={server_address}"
                                 f"/{self.server_instance.server_address}"
                                 f"/{self.server_instance.socket.getsockname()}")
+            tct = threading.current_thread()
             if threaded:
                 # Start a thread with the server -- that thread will then start one more thread for each request
                 self.server_thread = threading.Thread(name="SideloadingTrd", target=self.server_instance.serve_forever)
-                # self.server_thread.daemon = True    # exit the server thread when the main thread terminates
                 self.server_thread.start()
-                self.log('verbose', f"{pre}: started server loop; running in separate thread={self.server_thread.name}")
+                self.log('verbose', f"{pre}: started server from thread={tct.name} in thread={self.server_thread.name}")
             else:
-                self.server_thread = threading.current_thread()
-                self.log('verbose', f"{pre}: starting server loop; blocking this main thread={self.server_thread.name}")
+                self.log('verbose', f"{pre}: starting server loop; blocking this main thread={tct.name}")
+                self.server_thread = tct
                 self.server_instance.serve_forever()
 
         except (IOError, OSError, Exception) as ex:
@@ -310,20 +311,19 @@ class SideloadingServerApp(ConsoleApp):
         return bool(self.server_instance and self.server_thread)
 
     def stop_server(self):
-        """ stop/pause sideloading server. """
+        """ stop/pause sideloading server - callable also if not running to reset/prepare this app instance. """
         pre = "SideloadingServerApp.stop_server()"
         self.log('verbose', f"{pre}")
-        if clients_lock.locked():
+        if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
-        if requests_lock.locked():
+        if requests_lock.locked():  # pragma: no cover
             self.log('print', f"{pre}: releasing requests lock")
             requests_lock.release()
 
         if self.server_instance and self.server_thread:
-            if self.server_thread == threading.current_thread():
+            if self.server_thread == threading.current_thread():                # pragma: no cover
                 thread = threading.Thread(name="StopSideloadingServerThread", target=self.server_instance.shutdown)
-                thread.daemon = True
                 thread.start()
                 thread.join(timeout=SHUTDOWN_TIMEOUT)
                 if thread.is_alive():
@@ -332,14 +332,14 @@ class SideloadingServerApp(ConsoleApp):
                 self.server_instance.shutdown()
                 self.server_thread.join(timeout=SHUTDOWN_TIMEOUT)
                 if self.server_thread.is_alive():
-                    self.log('print', f"{pre}: server thread join timed out")
+                    self.log('print', f"{pre}: server thread join timed out")   # pragma: no cover
         self.server_instance = self.server_thread = None
 
         self.client_handlers = dict()
         self.load_requests = list()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':              # pragma: no cover
     server_app = server_factory()
     server_app.run_app()
     server_app.start_server()
