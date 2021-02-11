@@ -98,7 +98,10 @@ class TestSideloadingServerApp:
 
         client_ip = list(threaded_server.client_handlers.keys())[0]
         assert client_ip in ('localhost', '127.0.0.1', os_local_ip())
-        tra, tot = threaded_server.client_progress(client_ip)
+        while True:
+            tra, tot = threaded_server.client_progress(client_ip)
+            if tra >= 0:        # wait for server handler thread
+                break
         assert tot == len(tst_apk_content)
         assert tra == len(tst_apk_content)
 

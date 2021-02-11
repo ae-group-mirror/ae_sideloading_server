@@ -120,7 +120,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def log_request(self, code='-', size='-'):
         """ overwrite for to prevent console output if not in debug mode. """
         if server_app.debug:
-            super().log_request(code=code, size=size)
+            super().log_request(code=code, size=size)       # pragma: no cover
 
 
 class SideloadingServerApp(ConsoleApp):
@@ -186,7 +186,7 @@ class SideloadingServerApp(ConsoleApp):
         log_entries = dict()
         requests = self.load_requests
         for entry in requests:
-            log_entries[entry['rt_id']] = entry
+            log_entries[entry['rt_id']] = entry     # pragma: no cover
         requests[:] = list()
         requests_lock.release()
 
