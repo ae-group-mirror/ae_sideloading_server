@@ -69,7 +69,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -107,6 +107,20 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     return server_app
 
 
+def update_handler_progress(handler: Optional['SimpleHTTPRequestHandler'] = None,
+                            transferred_bytes: int = -3, total_bytes: int = -3, **_kwargs):
+    """ default progress update callback.
+
+    :param handler:             server request handler - containing the attributes to be updated.
+    :param transferred_bytes:   already transferred bytes or error code.
+    :param total_bytes:         total sideloading bytes.
+    :param _kwargs:             additional/optional kwargs (e.g. client_ip).
+    """
+    if handler:
+        handler.progress_transferred = transferred_bytes
+        handler.progress_total = total_bytes
+
+
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     """ server request handler. """
     progress_total: int = -1                            #: total file size in bytes to be transferred
@@ -125,12 +139,12 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
 class SideloadingServerApp(ConsoleApp):
     """ server service app class """
-    client_handlers: Dict[str, SimpleHTTPRequestHandler] = dict()           #: handler for each active client connection
-    file_path: str = ""                                                     #: path to the found sideloading file
-    load_requests: List[SideloadingKwargs] = list()                         #: sideloading requests and error/debug log
-    progress_callback: Callable = lambda **_: None                          #: optional progress callback
-    server_instance: Optional[HTTPServer] = None                            #: server class instance
-    server_thread: Optional[threading.Thread] = None                        #: server thread (main or separate thread)
+    client_handlers: Dict[str, SimpleHTTPRequestHandler]                    #: handler for each active client connection
+    file_path: str                                                          #: path to the found sideloading file
+    load_requests: List[SideloadingKwargs]                                  #: sideloading requests and error/debug log
+    progress_callback: Callable = lambda **_: None                          #: progress event callback
+    server_instance: Optional[HTTPServer]                                   #: server class instance
+    server_thread: Optional[threading.Thread]                               #: server thread (main or separate thread)
 
     def client_progress(self, client_ip: str) -> Tuple[int, int]:
         """ determine sideloading progress (transferred bytes) for the client with the passed ip address.
@@ -138,9 +152,14 @@ class SideloadingServerApp(ConsoleApp):
         This method can be used alternatively to the callback :attr:`~SideloadingServerApp.progress_callback`.
 
         :param client_ip:       client ip address.
-        :return:                tuple of transferred bytes (-1 if sideloading did not start, -2 if not exists or
-                                sideloading already finished else 0..file_size) and total size in bytes (0 if not
-                                started/exists).
+        :return:                tuple of two int values: status and file size of the sideloading file. The
+                                A positive status value signifies the number of already transferred bytes.
+                                A negative value in this first int signals an error. Possibles error codes are:
+                                * -1 if sideloading task did not started yet
+                                * -2 if not exists or sideloading task has already finished
+                                * -3 if the default
+                                Please not that the file size given in the second int can be 0 if an error has occurred
+                                or if the sideloading task is not yet fully created/started.
         """
         clients_lock.acquire()
         handler = self.client_handlers.get(client_ip, None)
@@ -186,7 +205,7 @@ class SideloadingServerApp(ConsoleApp):
         log_entries = dict()
         requests = self.load_requests
         for entry in requests:
-            log_entries[entry['rt_id']] = entry     # pragma: no cover
+            log_entries[entry['rt_id']] = entry
         requests[:] = list()
         requests_lock.release()
 
@@ -206,6 +225,7 @@ class SideloadingServerApp(ConsoleApp):
         self.client_handlers[client_ip] = handler   # removed by controlling process/app on finished sideloading
         clients_lock.release()
 
+        errors: List[str] = list()
         try:
             handler.send_response(200)
             handler.send_header("Content-Type", 'application/octet-stream')
@@ -216,20 +236,20 @@ class SideloadingServerApp(ConsoleApp):
                 handler.send_header("Content-Length", str(file_size))
                 handler.end_headers()
 
-                progress_kwargs = dict(client_ip=client_ip)
-                errors: List[str] = list()
+                progress_kwargs = dict(client_ip=client_ip, handler=handler)
                 copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=SOCKET_BUF_LEN, errors=errors,
-                           progress_func=self.progress_callback, progress_kwargs=progress_kwargs)
+                           progress_func=self.progress_callback, **progress_kwargs)
                 if errors:
-                    self.log('print', f"{pre} copy_bytes errors: {errors}")             # pragma: no cover
+                    self.log('print', f"{pre} copy_bytes errors: {errors}")
                 else:
                     handler.progress_transferred = file_size
 
-        except (KeyError, IOError, OSError, SyntaxError, ValueError, Exception) as ex:  # pragma: no cover
+        except (KeyError, IOError, OSError, SyntaxError, ValueError, Exception) as ex:
             self.log('print', f"{pre} exception {ex} on send of {self.file_path}")
 
         else:
-            self.log('debug', f"{pre} side-loaded {file_size} bytes of {self.file_path} to {client_ip}")
+            if not errors:
+                self.log('debug', f"{pre} side-loaded {file_size} bytes of {self.file_path} to {client_ip}")
 
     def server_url(self) -> str:
         """ determine a url string for to put into the address field of any browser for to start sideloading.
@@ -251,7 +271,8 @@ class SideloadingServerApp(ConsoleApp):
         self.stop_server()
         super().shutdown(exit_code=exit_code, timeout=timeout)
 
-    def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = lambda **_: None) -> bool:
+    def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = update_handler_progress
+                     ) -> bool:
         """ start http file sideloading server to run until :meth:`~.stop_server` get called.
 
         :param file_mask:       optional glob.glob file mask to specify the sideloading file. If not passed then
@@ -261,22 +282,29 @@ class SideloadingServerApp(ConsoleApp):
                                 The file path of the matched file can be accessed via the
                                 :attr:`~SideloadingServerApp.file_path` attribute.
         :param threaded:        optionally pass True to use separate thread to run the server instance.
-        :param progress:        optional callback executed for each transferred/side-loaded chunk. Alternatively the
-                                method :meth:`~SideloadingServerApp.client_progress` can be used.
+        :param progress:        optional callback executed for each transferred/side-loaded chunk. If not specified
+                                then the default callback method :func:`update_handler_progress`
+                                will be called for to update the progress attributes of the request handler, which can
+                                be polled via the :meth:`~SideloadingServerApp.client_progress` method.
         :return:                True if server instance/thread got started else False.
         """
         pre = "SideloadingServerApp.start_server()"
         if not file_mask:
             file_mask = self.get_opt('file_mask', DEFAULT_FILE_MASK)
-        self.progress_callback = progress   # type: ignore
-        self.log('debug', f"{pre}: {'threaded' if threaded else ''} with file mask='{file_mask}' and cb={progress}")
+        self.progress_callback = progress                                                       # type: ignore
 
+        self.server_instance = self.server_thread = None
+        self.client_handlers = dict()
+        self.load_requests = list()
+
+        if requests_lock.locked():  # pragma: no cover
+            requests_lock.release()             # release before self.log() call (new aquiring)
+            self.log('print', f"{pre}: released requests lock")
         if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
-        if requests_lock.locked():  # pragma: no cover
-            self.log('print', f"{pre}: releasing requests lock")
-            requests_lock.release()
+
+        self.log('debug', f"{pre}: {'threaded' if threaded else ''} with file mask='{file_mask}' and cb={progress}")
 
         try:
             files = glob.glob(norm_path(file_mask))
@@ -313,15 +341,15 @@ class SideloadingServerApp(ConsoleApp):
     def stop_server(self):
         """ stop/pause sideloading server - callable also if not running to reset/prepare this app instance. """
         pre = "SideloadingServerApp.stop_server()"
-        self.log('verbose', f"{pre}")
+        if requests_lock.locked():  # pragma: no cover
+            requests_lock.release()             # release before self.log() call (new aquiring)
+            self.log('print', f"{pre}: released requests lock")
         if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
-        if requests_lock.locked():  # pragma: no cover
-            self.log('print', f"{pre}: releasing requests lock")
-            requests_lock.release()
+        self.log('verbose', f"{pre}")
 
-        if self.server_instance and self.server_thread:
+        if getattr(self, 'server_instance', False) and getattr(self, 'server_thread', False):
             if self.server_thread == threading.current_thread():                # pragma: no cover
                 thread = threading.Thread(name="StopSideloadingServerThread", target=self.server_instance.shutdown)
                 thread.start()
@@ -334,9 +362,6 @@ class SideloadingServerApp(ConsoleApp):
                 if self.server_thread.is_alive():
                     self.log('print', f"{pre}: server thread join timed out")   # pragma: no cover
         self.server_instance = self.server_thread = None
-
-        self.client_handlers = dict()
-        self.load_requests = list()
 
 
 if __name__ == '__main__':              # pragma: no cover

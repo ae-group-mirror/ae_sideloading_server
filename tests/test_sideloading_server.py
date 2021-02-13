@@ -1,10 +1,12 @@
 """ unit tests - still very basic - have to fix the multiple connect/test error: [Errno 98] Address already in use. """
 import os
+import pytest
 import threading
 import time
-import pytest
 
+from io import BytesIO
 from socket import socket
+from unittest.mock import MagicMock
 
 from ae.base import os_local_ip
 from ae.files import write_file_text
@@ -57,21 +59,6 @@ class TestHelpers:
 
 
 class TestSideloadingServerApp:
-    # this test fails when run after the other tests
-    def test_start_server(self, restore_app_env):
-        app = server_factory()
-        PATH_PLACEHOLDERS['downloads'] = "tests"
-        test_downloadable = norm_path(os.path.join("{downloads}", "sideloading_server.apk"))
-        write_file_text("tst_apk_content", test_downloadable)
-        thread = threading.Thread(name='TestStartServer', target=app.start_server)
-        thread.start()
-        while not getattr(app, 'server_instance', False) and not getattr(app, 'server_thread', False):
-            time.sleep(0.6)
-        app.stop_server()
-        os.remove(test_downloadable)
-        while app.server_instance or app.server_thread:
-            time.sleep(0.6)
-
     def test_client_progress_no_req_local_ip(self, threaded_server):
         tra, tot = threaded_server.client_progress(os_local_ip())
         assert tra == -2
@@ -115,6 +102,22 @@ class TestSideloadingServerApp:
         logs = list(log_entries.values())
         assert threaded_server.debug == bool(logs)
 
+    def test_fetch_log_entries_req(self, threaded_server):
+        with socket() as sock:
+            sock.connect(('localhost', SERVER_PORT))
+            sock.sendall(b"GET / HTTP/1.0\r\n\r\n")
+
+        log_entries = threaded_server.fetch_log_entries()
+        assert isinstance(log_entries, dict)
+        logs = list(log_entries.values())
+        assert threaded_server.debug == bool(logs)
+
+        tst_msg = "test message to be logged"
+        threaded_server.log('print', tst_msg)
+        logs = list(threaded_server.fetch_log_entries().values())
+        assert logs
+        assert logs[-1]['message'] == tst_msg
+
     def test_id_of_task(self, threaded_server):
         assert threaded_server.id_of_task('action', 'object', 'key')
         assert 'action' in threaded_server.id_of_task('action', 'object', 'key')
@@ -142,5 +145,45 @@ class TestSideloadingServerApp:
         assert req['log_time']
         assert rt_id_part in req['rt_id']
 
+    def test_response_to_request(self, threaded_server):
+        handler = MagicMock()
+        handler.wfile = BytesIO()
+        threaded_server.response_to_request(handler)
+        assert handler.wfile.tell() == len(tst_apk_content)
+        handler.wfile.seek(0)
+        assert str(handler.wfile.read(), 'utf-8') == tst_apk_content
+
+    def test_response_to_request_copy_bytes_error(self, threaded_server):
+        handler = MagicMock()
+        handler.wfile = None
+        threaded_server.response_to_request(handler)
+        assert threaded_server.load_requests
+        assert 'copy_bytes error' in threaded_server.load_requests[-1]['message']
+
+    def test_response_to_request_exception(self, threaded_server):
+        handler = MagicMock()
+        threaded_server.file_path = ""
+        threaded_server.response_to_request(handler)
+        assert threaded_server.load_requests
+        assert 'exception' in threaded_server.load_requests[-1]['message']
+
     def test_server_url(self, threaded_server):
         assert threaded_server.server_url()
+
+    def test_start_server(self, restore_app_env):
+        app = server_factory()
+        PATH_PLACEHOLDERS['downloads'] = "tests"
+        test_downloadable = norm_path(os.path.join("{downloads}", "sideloading_server.apk"))
+        write_file_text("tst_apk_content", test_downloadable)
+        thread = threading.Thread(name='TestStartServer', target=app.start_server)
+        thread.start()
+        while not getattr(app, 'server_instance', False) and not getattr(app, 'server_thread', False):
+            time.sleep(0.6)
+        app.stop_server()
+        os.remove(test_downloadable)
+        while app.server_instance or app.server_thread:
+            time.sleep(0.6)
+
+    def test_start_server_exception(self, restore_app_env):
+        app = server_factory()
+        assert not app.start_server(file_mask=': invalid file :')
