@@ -69,10 +69,11 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
+FILE_COUNT_MISMATCH = " files found matching "  #: err msg part of :meth:`SideloadingServerApp.start_server`
 
 SERVER_BIND = ""                    #: setting BIND to '' or None for to allow connections for all local devices
 SERVER_PORT = 36996                 #: http server listening port (a port number under 1024 requires root privileges)
@@ -257,7 +258,7 @@ class SideloadingServerApp(ConsoleApp):
         :return:                server url string.
         """
         url = "http://" + os_local_ip()
-        port = self.get_option('port')
+        port = self.get_opt('port')
         if port != 80:
             url += ":" + str(port)
         return url
@@ -272,7 +273,7 @@ class SideloadingServerApp(ConsoleApp):
         super().shutdown(exit_code=exit_code, timeout=timeout)
 
     def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = update_handler_progress
-                     ) -> bool:
+                     ) -> str:
         """ start http file sideloading server to run until :meth:`~.stop_server` get called.
 
         :param file_mask:       optional glob.glob file mask to specify the sideloading file. If not passed then
@@ -286,7 +287,7 @@ class SideloadingServerApp(ConsoleApp):
                                 then the default callback method :func:`update_handler_progress`
                                 will be called for to update the progress attributes of the request handler, which can
                                 be polled via the :meth:`~SideloadingServerApp.client_progress` method.
-        :return:                True if server instance/thread got started else False.
+        :return:                empty string/"" if server instance/thread got started else the error message string.
         """
         pre = "SideloadingServerApp.start_server()"
         if not file_mask:
@@ -298,7 +299,7 @@ class SideloadingServerApp(ConsoleApp):
         self.load_requests = list()
 
         if requests_lock.locked():  # pragma: no cover
-            requests_lock.release()             # release before self.log() call (new aquiring)
+            requests_lock.release()             # release before self.log() call (new acquiring)
             self.log('print', f"{pre}: released requests lock")
         if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")
@@ -306,15 +307,17 @@ class SideloadingServerApp(ConsoleApp):
 
         self.log('debug', f"{pre}: {'threaded' if threaded else ''} with file mask='{file_mask}' and cb={progress}")
 
+        err_msg = ""
         try:
             files = glob.glob(norm_path(file_mask))
             file_count = len(files)
-            assert file_count == 1, f"{pre}: {str(file_count) if file_count else 'no'} files found matching {file_mask}"
+            if file_count != 1:
+                return f"{pre}: {str(file_count) if file_count else 'no'}{FILE_COUNT_MISMATCH}{file_mask}"
             self.file_path = files[0]
 
-            server_address = (self.get_option('bind'), self.get_option('port'))
+            server_address = (self.get_opt('bind'), self.get_opt('port'))
+            HTTPServer.allow_reuse_address = True
             SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
-            assert HTTPServer.allow_reuse_address
             self.server_instance = HTTPServer(server_address, SimpleHTTPRequestHandler)
             self.server_instance.timeout = SHUTDOWN_TIMEOUT
 
@@ -333,16 +336,17 @@ class SideloadingServerApp(ConsoleApp):
                 self.server_instance.serve_forever()
 
         except (IOError, OSError, Exception) as ex:
-            self.log('print', f"{pre}: exception {ex}")
+            err_msg = f"{pre}: exception {ex}"
+            self.log('print', err_msg)
             self.server_instance = self.server_thread = None
 
-        return bool(self.server_instance and self.server_thread)
+        return err_msg
 
     def stop_server(self):
         """ stop/pause sideloading server - callable also if not running to reset/prepare this app instance. """
         pre = "SideloadingServerApp.stop_server()"
         if requests_lock.locked():  # pragma: no cover
-            requests_lock.release()             # release before self.log() call (new aquiring)
+            requests_lock.release()             # release before self.log() call (new acquiring)
             self.log('print', f"{pre}: released requests lock")
         if clients_lock.locked():   # pragma: no cover
             self.log('print', f"{pre}: releasing clients lock")

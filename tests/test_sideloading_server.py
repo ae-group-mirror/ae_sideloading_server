@@ -184,6 +184,13 @@ class TestSideloadingServerApp:
         while app.server_instance or app.server_thread:
             time.sleep(0.6)
 
+    def test_start_server_error(self, restore_app_env):
+        app = server_factory()
+        assert app.start_server(file_mask=': invalid file :')
+
     def test_start_server_exception(self, restore_app_env):
         app = server_factory()
-        assert not app.start_server(file_mask=': invalid file :')
+        app.run_app()
+        app.set_opt('bind', ":invalid bind address:", save_to_config=False)
+        app.set_opt('port', ":invalid port:", save_to_config=False)
+        assert app.start_server(file_mask=os.path.join("tests", "conftest.py"), threaded=True)
