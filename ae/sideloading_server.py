@@ -69,7 +69,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.6'
+__version__ = '0.1.7'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -78,7 +78,7 @@ FILE_COUNT_MISMATCH = " files found matching "  #: err msg part of :meth:`Sidelo
 SERVER_BIND = ""                    #: setting BIND to '' or None for to allow connections for all local devices
 SERVER_PORT = 36996                 #: http server listening port (a port number under 1024 requires root privileges)
 
-SOCKET_BUF_LEN = 4096               #: buf length for socket sends in :meth:`~SideloadingServerApp.response_to_request`
+SOCKET_BUF_LEN = 16 * 1024          #: buf length for socket sends in :meth:`~SideloadingServerApp.response_to_request`
 
 SHUTDOWN_TIMEOUT = 3.9              #: timeout (in seconds) to shutdown/stop the console app and http sideloading server
 
@@ -100,6 +100,7 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     server_app.add_option('bind', "server bind address", SERVER_BIND, 'b')
     server_app.add_option('port', "server listening port", SERVER_PORT, 'p')
     server_app.add_option('file_mask', "glob file mask for the sideloading file", DEFAULT_FILE_MASK, 'm')
+    server_app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, 'l')
 
     if task_id_func:
         # noinspection PyTypeHints
@@ -188,7 +189,7 @@ class SideloadingServerApp(ConsoleApp):
         if callable(out_method):
             out_method(("" if self.active_log_stream else f"{threading.current_thread().name: <15}") + f"{message}")
 
-        if getattr(self, log_level, True):
+        if getattr(self, log_level, True) and hasattr(self, 'load_requests'):
             log_time = datetime.datetime.now()
 
             requests_lock.acquire()
@@ -238,8 +239,8 @@ class SideloadingServerApp(ConsoleApp):
                 handler.end_headers()
 
                 progress_kwargs = dict(client_ip=client_ip, handler=handler)
-                copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=SOCKET_BUF_LEN, errors=errors,
-                           progress_func=self.progress_callback, **progress_kwargs)
+                copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=self.get_opt('buf_len'),
+                           errors=errors, progress_func=self.progress_callback, **progress_kwargs)
                 if errors:
                     self.log('print', f"{pre} copy_bytes errors: {errors}")
                 else:
@@ -287,6 +288,9 @@ class SideloadingServerApp(ConsoleApp):
                                 then the default callback method :func:`update_handler_progress`
                                 will be called for to update the progress attributes of the request handler, which can
                                 be polled via the :meth:`~SideloadingServerApp.client_progress` method.
+                                .. note::
+                                    if :paramref:`~.start_server.threaded` is `True` then the callback get executed
+                                    in its own thread.
         :return:                empty string/"" if server instance/thread got started else the error message string.
         """
         pre = "SideloadingServerApp.start_server()"
