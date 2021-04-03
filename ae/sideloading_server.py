@@ -44,11 +44,12 @@ For to temporarily stop the sideloading server simple call the :meth:`~Sideloadi
 exit additionally call the method :meth:`~SideloadingServerApp.shutdown`.
 
 .. hint::
-    The ae namespace portion :mod:`ae.kivy_sideloading` is providing a package for an easy integration of this
+    The ae namespace portion :mod:`~ae.kivy_sideloading` is providing a package for an easy integration of this
     sideloading server into your kivy app.
 
     An example usage of this sideloading server and the :mod:`ae.kivy_sideloading` package is integrated into the demo
-    apps `Lisz <https://gitlab.com/ae-group/kivy_lisz>`_ and `ComPartY <https://gitlab.com/ae-group/comparty>`_.
+    apps `GlslTester <https://github.com/AndiEcker/glsl_tester>`_, `Lisz <https://gitlab.com/ae-group/kivy_lisz>`_ and
+    `ComPartY <https://gitlab.com/ae-group/comparty>`_.
 
 """
 import datetime
@@ -69,7 +70,7 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
@@ -288,10 +289,11 @@ class SideloadingServerApp(ConsoleApp):
                                 then the default callback method :func:`update_handler_progress`
                                 will be called for to update the progress attributes of the request handler, which can
                                 be polled via the :meth:`~SideloadingServerApp.client_progress` method.
-                                .. note::
-                                    if :paramref:`~.start_server.threaded` is `True` then the callback get executed
-                                    in its own thread.
         :return:                empty string/"" if server instance/thread got started else the error message string.
+
+        .. note::
+            if :paramref:`~.start_server.threaded` is `True` then the :paramref:`~.start_server.progress` callback get
+            executed in its own thread.
         """
         pre = "SideloadingServerApp.start_server()"
         if not file_mask:
