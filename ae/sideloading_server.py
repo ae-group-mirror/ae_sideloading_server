@@ -2,13 +2,13 @@
 sideloading server
 ==================
 
-This ae namespace portion provides a simple http server for to download a file to another device in the same local
+This ae namespace portion provides a simple http server to download a file to another device in the same local
 network, using any web browser.
 
 By adding this module to your android app you can distribute e.g. the APK file of your app directly to another android
-device for to install it there - without requiring an app store or an internet connection.
+device to install it there - without requiring an app store or an internet connection.
 
-This portion requires the Python version 3.6 or higher. For to run multiple sideloading processes in parallel the
+This portion requires the Python version 3.6 or higher. to run multiple sideloading processes in parallel the
 version 3.7 or higher is needed (providing the threaded http server :class:`~http.server.ThreadingHTTPServer` class).
 
 The implementation is inspired by the accepted answer to `<https://stackoverflow.com/questions/18543640
@@ -40,7 +40,7 @@ While the server is running the :meth:`~SideloadingServerApp.client_progress` me
 of any currently running sideloading task. More detailed info of the running sideloading process can be gathered
 by calling the :meth:`~SideloadingServerApp.fetch_log_entries` method.
 
-For to temporarily stop the sideloading server simple call the :meth:`~SideloadingServerApp.stop_server` method. On app
+to temporarily stop the sideloading server simple call the :meth:`~SideloadingServerApp.stop_server` method. On app
 exit additionally call the method :meth:`~SideloadingServerApp.shutdown`.
 
 .. hint::
@@ -70,13 +70,13 @@ from ae.paths import norm_path                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.2.8'
+__version__ = '0.2.9'
 
 
-DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask for to sideloading file
+DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
 FILE_COUNT_MISMATCH = " files found matching "  #: err msg part of :meth:`SideloadingServerApp.start_server`
 
-SERVER_BIND = ""                    #: setting BIND to '' or None for to allow connections for all local devices
+SERVER_BIND = ""                    #: setting BIND to '' or None to allow connections for all local devices
 SERVER_PORT = 36996                 #: http server listening port (a port number under 1024 requires root privileges)
 
 SOCKET_BUF_LEN = 16 * 1024          #: buf length for socket sends in :meth:`~SideloadingServerApp.response_to_request`
@@ -92,7 +92,7 @@ requests_lock = threading.Lock()
 def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None) -> 'SideloadingServerApp':
     """ create server app instance.
 
-    :param task_id_func:        callable for to return an unique id for a transfer request task.
+    :param task_id_func:        callable to return an unique id for a transfer request task.
     :return:                    sideloading server app instance.
     """
     global server_app           #: singleton server instance
@@ -135,7 +135,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         server_app.response_to_request(self)
 
     def log_request(self, code='-', size='-'):
-        """ overwrite for to prevent console output if not in debug mode. """
+        """ overwrite to prevent console output if not in debug mode. """
         if server_app.debug:
             super().log_request(code=code, size=size)       # pragma: no cover
 
@@ -181,7 +181,7 @@ class SideloadingServerApp(ConsoleApp):
         return action + '_' + object_type + ':' + object_key
 
     def log(self, log_level: str, message: str):
-        """ print log message and optionally add it to the requests (for to be read by controller app).
+        """ print log message and optionally add it to the requests (to be read by controller app).
 
         :param log_level:       'print' always prints, 'debug' prints if self.debug, 'verbose' prints if self.verbose.
         :param message:         message to print.
@@ -217,7 +217,7 @@ class SideloadingServerApp(ConsoleApp):
     def response_to_request(self, handler: SimpleHTTPRequestHandler):
         """ process request to this server and return response string.
 
-        .. note:: this method may run in a separate thread (created by the server for to process this request).
+        .. note:: this method may run in a separate thread (created by the server to process this request).
 
         :param handler:         stream request handler instance.
         """
@@ -255,7 +255,7 @@ class SideloadingServerApp(ConsoleApp):
                 self.log('debug', f"{pre} side-loaded {file_size} bytes of {self.file_path} to {client_ip}")
 
     def server_url(self) -> str:
-        """ determine a url string for to put into the address field of any browser for to start sideloading.
+        """ determine a url string to put into the address field of any browser to start sideloading.
 
         :return:                server url string.
         """
@@ -266,7 +266,7 @@ class SideloadingServerApp(ConsoleApp):
         return url
 
     def shutdown(self, exit_code: Optional[int] = 0, timeout: Optional[float] = None):
-        """ overwritten for to stop any running sideloading server instance/threads on shutdown of this app instance.
+        """ overwritten to stop any running sideloading server instance/threads on shutdown of this app instance.
 
         :param exit_code:   set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
         :param timeout:     timeout float value in seconds - see :meth:`~ae.core.AppBase.shutdown`.
@@ -287,7 +287,7 @@ class SideloadingServerApp(ConsoleApp):
         :param threaded:        optionally pass True to use separate thread to run the server instance.
         :param progress:        optional callback executed for each transferred/side-loaded chunk. If not specified
                                 then the default callback method :func:`update_handler_progress`
-                                will be called for to update the progress attributes of the request handler, which can
+                                will be called to update the progress attributes of the request handler, which can
                                 be polled via the :meth:`~SideloadingServerApp.client_progress` method.
         :return:                empty string/"" if server instance/thread got started else the error message string.
 
