@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 from ae.base import os_local_ip
 from ae.files import write_file_text
-from ae.paths import PATH_PLACEHOLDERS, norm_path
+from ae.paths import PATH_PLACEHOLDERS, normalize
 from ae.sideloading_server import SERVER_PORT, SOCKET_BUF_LEN, SideloadingServerApp, server_factory
 from ae.console import ConsoleApp
 
@@ -24,7 +24,7 @@ def threaded_server(restore_app_env):
     app = server_factory()
     app.run_app()
     PATH_PLACEHOLDERS['downloads'] = "tests"
-    test_downloadable = norm_path(os.path.join("{downloads}", "sideloading_server.apk"))
+    test_downloadable = normalize(os.path.join("{downloads}", "sideloading_server.apk"))
     write_file_text(tst_apk_content, test_downloadable)
     app.start_server(threaded=True)
 
@@ -173,7 +173,7 @@ class TestSideloadingServerApp:
     def test_start_server(self, restore_app_env):
         app = server_factory()
         PATH_PLACEHOLDERS['downloads'] = "tests"
-        test_downloadable = norm_path(os.path.join("{downloads}", "sideloading_server.apk"))
+        test_downloadable = normalize(os.path.join("{downloads}", "sideloading_server.apk"))
         write_file_text("tst_apk_content", test_downloadable)
         thread = threading.Thread(name='TestStartServer', target=app.start_server)
         thread.start()

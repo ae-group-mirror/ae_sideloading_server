@@ -2,13 +2,13 @@
 sideloading server
 ==================
 
-This ae namespace portion provides a simple http server to download a file to another device in the same local
-network, using any web browser.
+this ae namespace portion provides a simple http server to download a file to another device in the same local network,
+using any web browser.
 
-By adding this module to your android app you can distribute e.g. the APK file of your app directly to another android
+by adding this module to your android app you can distribute e.g. the APK file of your app directly to another android
 device to install it there - without requiring an app store or an internet connection.
 
-This portion requires the Python version 3.6 or higher. to run multiple sideloading processes in parallel the
+this portion requires the Python version 3.6 or higher. to run multiple sideloading processes in parallel the
 version 3.7 or higher is needed (providing the threaded http server :class:`~http.server.ThreadingHTTPServer` class).
 
 The implementation is inspired by the accepted answer to `<https://stackoverflow.com/questions/18543640
@@ -66,11 +66,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ae.base import DATE_TIME_ISO, os_local_ip          # type: ignore
 from ae.files import copy_bytes                         # type: ignore
-from ae.paths import norm_path                          # type: ignore
+from ae.paths import normalize                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.2.9'
+__version__ = '0.3.9'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
@@ -205,11 +205,11 @@ class SideloadingServerApp(ConsoleApp):
         :return:                Dict[request_tasks_id, sideloading_request_kwargs] with fetched requests log entries.
         """
         requests_lock.acquire()
-        log_entries = dict()
+        log_entries = {}
         requests = self.load_requests
         for entry in requests:
             log_entries[entry['rt_id']] = entry
-        requests[:] = list()
+        requests[:] = []
         requests_lock.release()
 
         return log_entries
@@ -228,7 +228,7 @@ class SideloadingServerApp(ConsoleApp):
         self.client_handlers[client_ip] = handler   # removed by controlling process/app on finished sideloading
         clients_lock.release()
 
-        errors: List[str] = list()
+        errors: List[str] = []
         try:
             handler.send_response(200)
             handler.send_header("Content-Type", 'application/octet-stream')
@@ -301,8 +301,8 @@ class SideloadingServerApp(ConsoleApp):
         self.progress_callback = progress                                                       # type: ignore
 
         self.server_instance = self.server_thread = None
-        self.client_handlers = dict()
-        self.load_requests = list()
+        self.client_handlers = {}
+        self.load_requests = []
 
         if requests_lock.locked():  # pragma: no cover
             requests_lock.release()             # release before self.log() call (new acquiring)
@@ -315,7 +315,7 @@ class SideloadingServerApp(ConsoleApp):
 
         err_msg = ""
         try:
-            files = glob.glob(norm_path(file_mask))
+            files = glob.glob(normalize(file_mask))
             file_count = len(files)
             if file_count != 1:
                 return f"{pre}: {str(file_count) if file_count else 'no'}{FILE_COUNT_MISMATCH}{file_mask}"
