@@ -8,9 +8,6 @@ using any web browser.
 by adding this module to your android app you can distribute e.g. the APK file of your app directly to another android
 device to install it there - without requiring an app store or an internet connection.
 
-this portion requires the Python version 3.6 or higher. to run multiple sideloading processes in parallel the
-version 3.7 or higher is needed (providing the threaded http server :class:`~http.server.ThreadingHTTPServer` class).
-
 The implementation is inspired by the accepted answer to `<https://stackoverflow.com/questions/18543640
 /how-would-i-create-a-python-web-server-that-downloads-a-file-on-any-get-request>`_.
 
@@ -56,9 +53,8 @@ import datetime
 import glob
 import os
 import threading
-from http.server import BaseHTTPRequestHandler
 
-from http.server import ThreadingHTTPServer as HTTPServer  # available from Python 3.7 onwards
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer  # ThreadingHTTPServer available in Python>=3.7
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ae.base import DATE_TIME_ISO, os_local_ip          # type: ignore
@@ -143,7 +139,7 @@ class SideloadingServerApp(ConsoleApp):
     file_path: str                                                          #: path to the found sideloading file
     load_requests: List[SideloadingKwargs]                                  #: sideloading requests and error/debug log
     progress_callback: Callable = lambda **_: None                          #: progress event callback
-    server_instance: Optional[HTTPServer]                                   #: server class instance
+    server_instance: Optional[ThreadingHTTPServer]                          #: server class instance
     server_thread: Optional[threading.Thread]                               #: server thread (main or separate thread)
 
     def client_progress(self, client_ip: str) -> Tuple[int, int]:
@@ -256,6 +252,7 @@ class SideloadingServerApp(ConsoleApp):
 
         :return:                server url string.
         """
+        # noinspection HttpUrlsUsage
         url = "http://" + os_local_ip()
         port = self.get_opt('port')
         if port != 80:
@@ -319,9 +316,9 @@ class SideloadingServerApp(ConsoleApp):
             self.file_path = files[0]
 
             server_address = (self.get_opt('bind'), self.get_opt('port'))
-            HTTPServer.allow_reuse_address = True
+            ThreadingHTTPServer.allow_reuse_address = True
             SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
-            self.server_instance = HTTPServer(server_address, SimpleHTTPRequestHandler)
+            self.server_instance = ThreadingHTTPServer(server_address, SimpleHTTPRequestHandler)
             self.server_instance.timeout = SHUTDOWN_TIMEOUT
 
             self.log('verbose', f"{pre}: {self.file_path} (ip,port)={server_address}"
