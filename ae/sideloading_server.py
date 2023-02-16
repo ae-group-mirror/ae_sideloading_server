@@ -58,10 +58,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler
 
-try:
-    from http.server import ThreadingHTTPServer as HTTPServer   # type: ignore # only available from Python 3.7 onwards
-except ImportError:
-    from http.server import HTTPServer
+from http.server import ThreadingHTTPServer as HTTPServer  # available from Python 3.7 onwards
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ae.base import DATE_TIME_ISO, os_local_ip          # type: ignore
@@ -70,7 +67,7 @@ from ae.paths import normalize                          # type: ignore
 from ae.console import ConsoleApp                       # type: ignore
 
 
-__version__ = '0.3.9'
+__version__ = '0.3.10'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
@@ -298,7 +295,7 @@ class SideloadingServerApp(ConsoleApp):
         pre = "SideloadingServerApp.start_server()"
         if not file_mask:
             file_mask = self.get_opt('file_mask', DEFAULT_FILE_MASK)
-        self.progress_callback = progress                                                       # type: ignore
+        self.progress_callback = progress
 
         self.server_instance = self.server_thread = None
         self.client_handlers = {}

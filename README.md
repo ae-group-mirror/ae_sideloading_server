@@ -1,12 +1,12 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae V0.2.85 -->
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev_tpl_namespace_root V0.3.6 -->
-# sideloading_server 0.3.9
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.90 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_namespace_root V0.3.12 -->
+# sideloading_server 0.3.10
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/develop?logo=python)](
     https://gitlab.com/ae-group/ae_sideloading_server)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.2.9?logo=python)](
-    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.2.9)
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.3.9?logo=python)](
+    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.3.9)
 [![PyPIVersions](https://img.shields.io/pypi/v/ae_sideloading_server)](
     https://pypi.org/project/ae-sideloading-server/#history)
 
@@ -71,5 +71,5 @@ https://gitlab.com/ae-group/ae_sideloading_server/-/blob/develop/CONTRIBUTING.rs
 
 information on the features and usage of this portion are available at
 [ReadTheDocs](
-https://ae.readthedocs.io/en/latest/_autosummary/ae.sideloading_server.html#module-ae.sideloading_server
+https://ae.readthedocs.io/en/latest/_autosummary/ae.sideloading_server.html
 "ae_sideloading_server documentation").
