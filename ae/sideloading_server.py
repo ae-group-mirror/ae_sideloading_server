@@ -54,16 +54,16 @@ import glob
 import os
 import threading
 
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer  # ThreadingHTTPServer available in Python>=3.7
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer     # ThreadingHTTPServer available in Python>=3.7
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ae.base import DATE_TIME_ISO, os_local_ip          # type: ignore
-from ae.files import copy_bytes                         # type: ignore
-from ae.paths import normalize                          # type: ignore
-from ae.console import ConsoleApp                       # type: ignore
+from ae.base import DATE_TIME_ISO, dummy_function, os_local_ip          # type: ignore
+from ae.files import copy_bytes                                         # type: ignore
+from ae.paths import normalize                                          # type: ignore
+from ae.console import ConsoleApp                                       # type: ignore
 
 
-__version__ = '0.3.10'
+__version__ = '0.3.11'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
@@ -74,7 +74,7 @@ SERVER_PORT = 36996                 #: http server listening port (a port number
 
 SOCKET_BUF_LEN = 16 * 1024          #: buf length for socket sends in :meth:`~SideloadingServerApp.response_to_request`
 
-SHUTDOWN_TIMEOUT = 3.9              #: timeout (in seconds) to shutdown/stop the console app and http sideloading server
+SHUTDOWN_TIMEOUT = 3.9              #: timeout(in seconds) to shut down/stop the console app and http sideloading server
 
 SideloadingKwargs = Dict[str, Any]  #: command/log format of sideloading requests
 
@@ -138,7 +138,7 @@ class SideloadingServerApp(ConsoleApp):
     client_handlers: Dict[str, SimpleHTTPRequestHandler]                    #: handler for each active client connection
     file_path: str                                                          #: path to the found sideloading file
     load_requests: List[SideloadingKwargs]                                  #: sideloading requests and error/debug log
-    progress_callback: Callable = lambda **_: None                          #: progress event callback
+    progress_callback: Callable = dummy_function                            #: progress event callback
     server_instance: Optional[ThreadingHTTPServer]                          #: server class instance
     server_thread: Optional[threading.Thread]                               #: server thread (main or separate thread)
 
@@ -148,13 +148,13 @@ class SideloadingServerApp(ConsoleApp):
         This method can be used alternatively to the callback :attr:`~SideloadingServerApp.progress_callback`.
 
         :param client_ip:       client ip address.
-        :return:                tuple of two int values: status and file size of the sideloading file. The
+        :return:                tuple of two int values: status and file size of the sideloading file.
                                 A positive status value signifies the number of already transferred bytes.
                                 A negative value in this first int signals an error. Possibles error codes are:
-                                * -1 if sideloading task did not started yet
+                                * -1 if sideloading task did not start yet
                                 * -2 if not exists or sideloading task has already finished
                                 * -3 if the default
-                                Please not that the file size given in the second int can be 0 if an error has occurred
+                                Please note that the file size given in the second int can be 0 if an error has occurred
                                 or if the sideloading task is not yet fully created/started.
         """
         clients_lock.acquire()
@@ -176,7 +176,8 @@ class SideloadingServerApp(ConsoleApp):
     def log(self, log_level: str, message: str):
         """ print log message and optionally add it to the requests (to be read by controller app).
 
-        :param log_level:       'print' always prints, 'debug' prints if self.debug, 'verbose' prints if self.verbose.
+        :param log_level:       'print' always prints, 'debug' prints if `self.debug` is True and 'verbose' prints a
+                                message to the log if `self.verbose` is True.
         :param message:         message to print.
         """
         out_method = getattr(self, log_level + '_out', None)
@@ -248,7 +249,7 @@ class SideloadingServerApp(ConsoleApp):
                 self.log('debug', f"{pre} side-loaded {file_size} bytes of {self.file_path} to {client_ip}")
 
     def server_url(self) -> str:
-        """ determine a url string to put into the address field of any browser to start sideloading.
+        """ determine an url string to put into the address field of any browser to start sideloading.
 
         :return:                server url string.
         """
@@ -273,7 +274,7 @@ class SideloadingServerApp(ConsoleApp):
         """ start http file sideloading server to run until :meth:`~.stop_server` get called.
 
         :param file_mask:       optional glob.glob file mask to specify the sideloading file. If not passed then
-                                the :data:`DEFAULT_FILE_MASK` will be used which specifies a APK file of the
+                                the :data:`DEFAULT_FILE_MASK` will be used which specifies an APK file of the
                                 main app situated in the `Downloads` folder of the device.
                                 The sideloading server will only be started if the file mask matches exactly one file.
                                 The file path of the matched file can be accessed via the
