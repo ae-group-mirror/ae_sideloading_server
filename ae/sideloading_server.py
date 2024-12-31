@@ -63,7 +63,7 @@ from ae.paths import normalize                                          # type: 
 from ae.console import ConsoleApp                                       # type: ignore
 
 
-__version__ = '0.3.11'
+__version__ = '0.3.12'
 
 
 DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
@@ -306,7 +306,7 @@ class SideloadingServerApp(ConsoleApp):
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
 
-        self.log('debug', f"{pre}: {'threaded' if threaded else ''} with file mask='{file_mask}' and cb={progress}")
+        self.log('debug', f"{pre}: {threaded=} {file_mask=} {progress=}")
 
         err_msg = ""
         try:
@@ -322,7 +322,7 @@ class SideloadingServerApp(ConsoleApp):
             self.server_instance = ThreadingHTTPServer(server_address, SimpleHTTPRequestHandler)
             self.server_instance.timeout = SHUTDOWN_TIMEOUT
 
-            self.log('verbose', f"{pre}: {self.file_path} (ip,port)={server_address}"
+            self.log('verbose', f"{pre}: {self.file_path=} {server_address=}"
                                 f"/{self.server_instance.server_address}"
                                 f"/{self.server_instance.socket.getsockname()}")
             tct = threading.current_thread()
@@ -330,9 +330,9 @@ class SideloadingServerApp(ConsoleApp):
                 # Start a thread with the server -- that thread will then start one more thread for each request
                 self.server_thread = threading.Thread(name="SideloadingTrd", target=self.server_instance.serve_forever)
                 self.server_thread.start()
-                self.log('verbose', f"{pre}: started server from thread={tct.name} in thread={self.server_thread.name}")
+                self.log('verbose', f"{pre}: started server from {tct.name=} in {self.server_thread.name=}")
             else:
-                self.log('verbose', f"{pre}: starting server loop; blocking this main thread={tct.name}")
+                self.log('verbose', f"{pre}: starting server loop; blocking this main {tct.name=}")
                 self.server_thread = tct
                 self.server_instance.serve_forever()
 
