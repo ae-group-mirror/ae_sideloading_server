@@ -25,8 +25,9 @@ sideloading app and then call its :meth:`~SideloadingServerApp.start_server` met
     sideloading_server_app = server_factory()
     sideloading_server_app.start_server()
 
-By calling :meth:`~SideloadingServerApp.start_server` without arguments a default file mask (:data:`DEFAULT_FILE_MASK`)
-will be used, which specifies the APK file of the main app situated in the `Downloads` folder of the device.
+By calling :meth:`~SideloadingServerApp.start_server` without arguments the default file mask defined by
+:data:`DEFAULT_APK_FILE_MASK` will be used, to determine the APK file of the main app situated in the
+`Downloads` folder of the device.
 
 The web address that has to be entered in the web browser of the receiving device can be determined with the
 :meth:`~SideloadingServerApp.server_url` method::
@@ -63,11 +64,11 @@ from ae.paths import normalize                                          # type: 
 from ae.console import ConsoleApp                                       # type: ignore
 
 
-__version__ = '0.3.12'
+__version__ = '0.3.13'
 
 
-DEFAULT_FILE_MASK = "{downloads}/{main_app_name}*.apk"     #: default glob file mask to sideloading file
-FILE_COUNT_MISMATCH = " files found matching "  #: err msg part of :meth:`SideloadingServerApp.start_server`
+DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
+FILE_COUNT_MISMATCH = " files found matching "              #: err msg part of :meth:`SideloadingServerApp.start_server`
 
 SERVER_BIND = ""                    #: setting BIND to '' or None to allow connections for all local devices
 SERVER_PORT = 36996                 #: http server listening port (a port number under 1024 requires root privileges)
@@ -93,7 +94,7 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     server_app = SideloadingServerApp(app_name='sideloading_server', multi_threading=True, disable_buffering=True)
     server_app.add_option('bind', "server bind address", SERVER_BIND, 'b')
     server_app.add_option('port', "server listening port", SERVER_PORT, 'p')
-    server_app.add_option('file_mask', "glob file mask for the sideloading file", DEFAULT_FILE_MASK, 'm')
+    server_app.add_option('file_mask', "file mask for the sideloading file", DEFAULT_APK_FILE_MASK, 'm')
     server_app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, 'l')
 
     if task_id_func:
@@ -274,7 +275,7 @@ class SideloadingServerApp(ConsoleApp):
         """ start http file sideloading server to run until :meth:`~.stop_server` get called.
 
         :param file_mask:       optional glob.glob file mask to specify the sideloading file. If not passed then
-                                the :data:`DEFAULT_FILE_MASK` will be used which specifies an APK file of the
+                                the :data:`DEFAULT_APK_FILE_MASK` will be used which specifies an APK file of the
                                 main app situated in the `Downloads` folder of the device.
                                 The sideloading server will only be started if the file mask matches exactly one file.
                                 The file path of the matched file can be accessed via the
@@ -292,7 +293,7 @@ class SideloadingServerApp(ConsoleApp):
         """
         pre = "SideloadingServerApp.start_server()"
         if not file_mask:
-            file_mask = self.get_opt('file_mask', DEFAULT_FILE_MASK)
+            file_mask = self.get_option('file_mask', DEFAULT_APK_FILE_MASK)
         self.progress_callback = progress
 
         self.server_instance = self.server_thread = None
