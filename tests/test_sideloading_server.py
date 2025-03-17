@@ -8,10 +8,11 @@ from io import BytesIO
 from socket import socket
 from unittest.mock import MagicMock
 
-from ae.base import os_local_ip
+from ae.base import defuse, os_local_ip
 from ae.files import write_file_text
 from ae.paths import PATH_PLACEHOLDERS, normalize
-from ae.sideloading_server import SERVER_PORT, SOCKET_BUF_LEN, SideloadingServerApp, server_factory
+from ae.sideloading_server import (
+    SERVER_PORT, SOCKET_BUF_LEN, content_disposition_file_name, server_factory, SideloadingServerApp)
 from ae.console import ConsoleApp
 
 
@@ -46,6 +47,13 @@ def test_constants_import():
 
 
 class TestHelpers:
+    def test_content_disposition_file_name(self):
+        assert content_disposition_file_name("").startswith("filename=")
+        assert content_disposition_file_name("tst_fil_nam.txt").startswith("filename=")
+
+        assert content_disposition_file_name("t_äst_€_ß").startswith("filename*=")
+        assert content_disposition_file_name(defuse("://.;?&\\")).startswith("filename*=")
+
     def test_server_factory(self, restore_app_env):
         app = server_factory()
         assert isinstance(app, ConsoleApp)

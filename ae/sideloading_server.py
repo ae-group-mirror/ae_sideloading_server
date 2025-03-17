@@ -57,14 +57,15 @@ import threading
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer     # ThreadingHTTPServer available in Python>=3.7
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from urllib.parse import quote
 
-from ae.base import DATE_TIME_ISO, dummy_function, os_local_ip          # type: ignore
-from ae.files import copy_bytes                                         # type: ignore
-from ae.paths import normalize                                          # type: ignore
-from ae.console import ConsoleApp                                       # type: ignore
+from ae.base import DATE_TIME_ISO, dummy_function, os_local_ip, os_path_basename    # type: ignore
+from ae.files import copy_bytes                                                     # type: ignore
+from ae.paths import normalize                                                      # type: ignore
+from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.13'
+__version__ = '0.3.14'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -81,6 +82,23 @@ SideloadingKwargs = Dict[str, Any]  #: command/log format of sideloading request
 
 clients_lock = threading.Lock()
 requests_lock = threading.Lock()
+
+
+def content_disposition_file_name(file_path: str) -> str:
+    """ encode non-ASCII characters in file name to be passed in http header to client
+
+    :param file_path:           file name/path to encode.
+    :return:                    base name of the specified file, encoded to ASCII/latin-1.
+
+    inspired by django 4.2 helper function utils/http.py/content_disposition_header()
+    """
+    file_name = os_path_basename(file_path)
+    try:
+        file_name.encode('ascii')
+        file_expr = 'filename="{}"'.format(file_name.replace("\\", "\\\\").replace('"', r"\""))
+    except UnicodeEncodeError:
+        file_expr = f"filename*=utf-8''{quote(file_name)}"
+    return file_expr
 
 
 def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None) -> 'SideloadingServerApp':
@@ -227,7 +245,7 @@ class SideloadingServerApp(ConsoleApp):
         try:
             handler.send_response(200)
             handler.send_header("Content-Type", 'application/octet-stream')
-            handler.send_header("Content-Disposition", f'attachment; filename="{os.path.basename(self.file_path)}"')
+            handler.send_header("Content-Disposition", f"attachment; {content_disposition_file_name(self.file_path)}")
             with open(self.file_path, 'rb') as file_handle:
                 file_size = os.fstat(file_handle.fileno()).st_size
                 handler.progress_total = file_size
