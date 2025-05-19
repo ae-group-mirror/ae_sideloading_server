@@ -87,7 +87,7 @@ class TestSideloadingServerApp:
 
         assert response
         assert response[:15] == b"HTTP/1.0 200 OK"
-        assert bytes(os.path.basename(threaded_server.file_path), 'utf-8') in response
+        assert bytes(os.path.basename(threaded_server.sideloading_file_path), 'utf-8') in response
 
         assert str(file_content, 'utf-8') == tst_apk_content
 
@@ -170,7 +170,7 @@ class TestSideloadingServerApp:
 
     def test_response_to_request_exception(self, threaded_server):
         handler = MagicMock()
-        threaded_server.file_path = ""
+        threaded_server.sideloading_file_path = ""
         threaded_server.response_to_request(handler)
         assert threaded_server.load_requests
         assert 'exception' in threaded_server.load_requests[-1]['message']
