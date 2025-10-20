@@ -65,7 +65,7 @@ from ae.paths import normalize                                                  
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.15'
+__version__ = '0.3.16'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -112,10 +112,10 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     global server_app           # pylint: disable=global-statement
 
     server_app = SideloadingServerApp(app_name='sideloading_server', multi_threading=True, disable_buffering=True)
-    server_app.add_option('bind', "server bind address", SERVER_BIND, 'b')
-    server_app.add_option('port', "server listening port", SERVER_PORT, 'p')
-    server_app.add_option('file_mask', "file mask for the sideloading file", DEFAULT_APK_FILE_MASK, 'm')
-    server_app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, 'l')
+    server_app.add_option('bind', "server bind address", SERVER_BIND, short_opt='b')
+    server_app.add_option('port', "server listening port", SERVER_PORT, short_opt='p')
+    server_app.add_option('file_mask', "file mask for the sideloading file", DEFAULT_APK_FILE_MASK, short_opt='m')
+    server_app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, short_opt='l')
 
     if task_id_func:
         # noinspection PyTypeHints
