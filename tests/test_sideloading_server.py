@@ -199,6 +199,6 @@ class TestSideloadingServerApp:
     def test_start_server_exception(self, restore_app_env):
         app = server_factory()
         app.run_app()
-        app.set_opt('bind', ":invalid bind address:", save_to_config=False)
-        app.set_opt('port', ":invalid port:", save_to_config=False)
+        app.set_option('bind', ":invalid bind address:", save_to_config=False)
+        app.set_option('port', ":invalid port:", save_to_config=False)
         assert app.start_server(file_mask=os.path.join("tests", "conftest.py"), threaded=True)

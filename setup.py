@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.58
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.59
 """ setup of ae namespace module portion sideloading_server: sideloading server. """
 # noinspection PyUnresolvedReferences
 import sys
@@ -25,13 +25,13 @@ setup_kwargs = {
     'license': 'GPL-3.0-or-later',
     'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.101 -->\n'
  '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.22 -->\n'
- '# sideloading_server 0.3.16\n'
+ '# sideloading_server 0.3.17\n'
  '\n'
  '[![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/develop?logo=python)](\n'
  '    https://gitlab.com/ae-group/ae_sideloading_server)\n'
  '[![LatestPyPIrelease](\n'
- '    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.3.16?logo=python)](\n'
- '    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.3.16)\n'
+ '    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.3.17?logo=python)](\n'
+ '    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.3.17)\n'
  '[![PyPIVersions](https://img.shields.io/pypi/v/ae_sideloading_server)](\n'
  '    https://pypi.org/project/ae-sideloading-server/#history)\n'
  '\n'
@@ -108,7 +108,7 @@ setup_kwargs = {
         'Source': 'https://ae.readthedocs.io/en/latest/_modules/ae/sideloading_server.html'},
     'python_requires': '>=3.9',
     'url': 'https://gitlab.com/ae-group/ae_sideloading_server',
-    'version': '0.3.16',
+    'version': '0.3.17',
     'zip_safe': True,
 }
 

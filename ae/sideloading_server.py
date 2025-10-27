@@ -65,7 +65,7 @@ from ae.paths import normalize                                                  
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.16'
+__version__ = '0.3.17'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -252,7 +252,7 @@ class SideloadingServerApp(ConsoleApp):
                 handler.end_headers()
 
                 progress_kwargs = {'client_ip': client_ip, 'handler': handler}
-                copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=self.get_opt('buf_len'),
+                copy_bytes(file_handle, handler.wfile, total_bytes=file_size, buf_size=self.get_option('buf_len'),
                            errors=errors, progress_func=self.progress_callback, **progress_kwargs)
                 if errors:
                     self.log('print', f"{pre} copy_bytes errors: {errors}")
@@ -273,7 +273,7 @@ class SideloadingServerApp(ConsoleApp):
         """
         # noinspection HttpUrlsUsage
         url = "http://" + os_local_ip()
-        port = self.get_opt('port')
+        port = self.get_option('port')
         if port != 80:
             url += ":" + str(port)
         return url
@@ -334,7 +334,7 @@ class SideloadingServerApp(ConsoleApp):
                 return f"{pre}: {str(file_count) if file_count else 'no'}{FILE_COUNT_MISMATCH}{file_mask}"
             self.sideloading_file_path = files[0]
 
-            server_address = (self.get_opt('bind'), self.get_opt('port'))
+            server_address = (self.get_option('bind'), self.get_option('port'))
             ThreadingHTTPServer.allow_reuse_address = True
             SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
             # noinspection PyTypeChecker
