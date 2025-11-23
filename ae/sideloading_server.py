@@ -65,7 +65,7 @@ from ae.paths import normalize                                                  
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.17'
+__version__ = '0.3.18'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -278,14 +278,16 @@ class SideloadingServerApp(ConsoleApp):
             url += ":" + str(port)
         return url
 
-    def shutdown(self, exit_code: Optional[int] = 0, timeout: Optional[float] = None):
+    def shutdown(self, exit_code: Optional[int] = 0, error_message: str = "", timeout: Optional[float] = None
+                 ):     # pragma: no cover
         """ overwritten to stop any running sideloading server instance/threads on shutdown of this app instance.
 
-        :param exit_code:   set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
-        :param timeout:     timeout float value in seconds - see :meth:`~ae.core.AppBase.shutdown`.
-        """
+                :param exit_code:       set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
+                :param error_message:   optional shutdown error message.
+                :param timeout:         timeout float value in seconds - see :meth:`~ae.core.AppBase.shutdown`.
+                """
         self.stop_server()
-        super().shutdown(exit_code=exit_code, timeout=timeout)
+        super().shutdown(exit_code=exit_code, error_message=error_message, timeout=timeout)
 
     def start_server(self, file_mask: str = "", threaded: bool = False, progress: Callable = update_handler_progress
                      ) -> str:
