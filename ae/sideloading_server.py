@@ -59,13 +59,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer     # Thread
 from typing import Any, Callable, Optional
 from urllib.parse import quote
 
-from ae.base import DATE_TIME_ISO, dummy_function, os_local_ip, os_path_basename    # type: ignore
+from ae.base import DATE_TIME_ISO, dummy_function, os_path_basename                 # type: ignore
+from ae.system import os_local_ip                                                   # type: ignore
 from ae.files import copy_bytes                                                     # type: ignore
 from ae.paths import normalize                                                      # type: ignore
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.18'
+__version__ = '0.3.19'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -92,7 +93,7 @@ def content_disposition_file_name(file_path: str) -> str:
     :param file_path:           file name/path to encode.
     :return:                    base name of the specified file, encoded to ASCII/latin-1.
 
-    inspired by django 4.2 helper function utils/http.py/content_disposition_header()
+    inspired by django 4.2 helper function utils/http.py/content_disposition_header.
     """
     file_name = os_path_basename(file_path)
     try:
@@ -106,7 +107,7 @@ def content_disposition_file_name(file_path: str) -> str:
 def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None) -> 'SideloadingServerApp':
     """ create server app instance.
 
-    :param task_id_func:        callable to return an unique id for a transfer request task.
+    :param task_id_func:        callable to return a unique id for a transfer request task.
     :return:                    sideloading server app instance.
     """
     global server_app           # pylint: disable=global-statement
