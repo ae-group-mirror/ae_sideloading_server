@@ -8,7 +8,8 @@ from io import BytesIO
 from socket import socket
 from unittest.mock import MagicMock
 
-from ae.base import defuse, os_local_ip
+from ae.base import defuse
+from ae.system import os_local_ip
 from ae.files import write_file_text
 from ae.paths import PATH_PLACEHOLDERS, normalize
 from ae.sideloading_server import (
@@ -141,7 +142,7 @@ class TestSideloadingServerApp:
 
         msg = "message"
         threaded_server.log('tst', msg)
-        assert called
+        assert len(called)
         assert msg in called[0]
 
     def test_log_append(self, threaded_server):
@@ -185,8 +186,10 @@ class TestSideloadingServerApp:
         write_file_text("tst_apk_content", test_downloadable)
         thread = threading.Thread(name='TestStartServer', target=app.start_server)
         thread.start()
-        while not getattr(app, 'server_instance', False) and not getattr(app, 'server_thread', False):
+        retries = 9   # added because sometimes the following loop freezes
+        while retries and not getattr(app, 'server_instance', False) and not getattr(app, 'server_thread', False):
             time.sleep(0.6)
+            retries -= 1
         app.stop_server()
         os.remove(test_downloadable)
         while app.server_instance or app.server_thread:

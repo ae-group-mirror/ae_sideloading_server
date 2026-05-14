@@ -1,5 +1,6 @@
 # dependencies of the sideloading_server portion
 ae_base
+ae_system
 ae_files
 ae_paths
 ae_console
