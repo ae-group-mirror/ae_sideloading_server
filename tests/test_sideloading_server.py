@@ -12,9 +12,11 @@ from ae.base import defuse
 from ae.system import os_local_ip
 from ae.files import write_file_text
 from ae.paths import PATH_PLACEHOLDERS, normalize
+from ae.console import ConsoleApp
+
+
 from ae.sideloading_server import (
     SERVER_PORT, SOCKET_BUF_LEN, content_disposition_file_name, server_factory, SideloadingServerApp)
-from ae.console import ConsoleApp
 
 
 tst_apk_content = "tst_apk_content"
@@ -137,7 +139,7 @@ class TestSideloadingServerApp:
         def _out(*args):
             nonlocal called
             called = args
-        called = ()
+        called: tuple[str, ...] = ()
         setattr(threaded_server, 'tst_out', _out)
 
         msg = "message"
