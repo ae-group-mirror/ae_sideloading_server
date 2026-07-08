@@ -50,13 +50,16 @@ exit additionally call the method :meth:`~SideloadingServerApp.shutdown`.
     `ComPartY <https://gitlab.com/ae-group/comparty>`_.
 
 """
+from __future__ import annotations  # allow type forward references (PEP 563), can be removed in Python 3.14+ (PEP 749)
+
 import datetime
 import glob
 import os
 import threading
 
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer     # ThreadingHTTPServer available in Python>=3.7
-from typing import Any, Callable, Optional
+from typing import Any
 from urllib.parse import quote
 
 from ae.base import DATE_TIME_ISO, dummy_function, os_path_basename                 # type: ignore
@@ -66,7 +69,7 @@ from ae.paths import normalize                                                  
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.19'
+__version__ = '0.3.20'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -84,7 +87,8 @@ SideloadingKwargs = dict[str, Any]  #: command/log format of sideloading request
 clients_lock = threading.Lock()
 requests_lock = threading.Lock()
 
-server_app: Optional['SideloadingServerApp'] = None     #: sideloading service server app
+# pylint: disable=invalid-name
+server_app: SideloadingServerApp | None = None          #: sideloading service server app
 
 
 def content_disposition_file_name(file_path: str) -> str:
@@ -104,7 +108,7 @@ def content_disposition_file_name(file_path: str) -> str:
     return file_expr
 
 
-def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None) -> 'SideloadingServerApp':
+def server_factory(task_id_func: Callable[[str, str, str], str] | None = None) -> SideloadingServerApp:
     """ create server app instance.
 
     :param task_id_func:        callable to return a unique id for a transfer request task.
@@ -112,20 +116,19 @@ def server_factory(task_id_func: Optional[Callable[[str, str, str], str]] = None
     """
     global server_app           # pylint: disable=global-statement
 
-    server_app = SideloadingServerApp(app_name='sideloading_server', multi_threading=True, disable_buffering=True)
-    server_app.add_option('bind', "server bind address", SERVER_BIND, short_opt='b')
-    server_app.add_option('port', "server listening port", SERVER_PORT, short_opt='p')
-    server_app.add_option('file_mask', "file mask for the sideloading file", DEFAULT_APK_FILE_MASK, short_opt='m')
-    server_app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, short_opt='l')
+    server_app = app = SideloadingServerApp(app_name='sideloading_server', multi_threading=True, disable_buffering=True)
+    app.add_option('bind', "server bind address", SERVER_BIND, short_opt='b')
+    app.add_option('port', "server listening port", SERVER_PORT, short_opt='p')
+    app.add_option('file_mask', "file mask for the sideloading file", DEFAULT_APK_FILE_MASK, short_opt='m')
+    app.add_option('buf_len', "socket buffer length", SOCKET_BUF_LEN, short_opt='l')
 
     if task_id_func:
-        # noinspection PyTypeHints
-        server_app.id_of_task = task_id_func    # type: ignore
+        app.id_of_task = task_id_func    # type: ignore
 
-    return server_app
+    return app
 
 
-def update_handler_progress(handler: Optional['SimpleHTTPRequestHandler'] = None,
+def update_handler_progress(handler: SimpleHTTPRequestHandler | None = None,
                             transferred_bytes: int = -3, total_bytes: int = -3, **_kwargs):
     """ default progress update callback.
 
@@ -147,11 +150,12 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     # noinspection PyPep8Naming
     def do_GET(self):           # pylint: disable=invalid-name
         """ handler callback for an http GET command request. """
-        server_app.response_to_request(self)
+        if server_app:
+            server_app.response_to_request(self)
 
     def log_request(self, code='-', size='-'):
         """ overwrite to prevent console output if not in debug mode. """
-        if server_app.debug:
+        if not server_app or server_app.debug:
             super().log_request(code=code, size=size)       # pragma: no cover
 
 
@@ -161,8 +165,8 @@ class SideloadingServerApp(ConsoleApp):
     sideloading_file_path: str                                              #: path to the found sideloading file
     load_requests: list[SideloadingKwargs]                                  #: sideloading requests and error/debug log
     progress_callback: Callable = dummy_function                            #: progress event callback
-    server_instance: Optional[ThreadingHTTPServer]                          #: server class instance
-    server_thread: Optional[threading.Thread]                               #: server thread (main or separate thread)
+    server_instance: ThreadingHTTPServer | None                             #: server class instance
+    server_thread: threading.Thread | None                                  #: server thread (main or separate thread)
 
     def client_progress(self, client_ip: str) -> tuple[int, int]:
         """ determine sideloading progress (transferred bytes) for the client with the passed ip address.
@@ -279,7 +283,7 @@ class SideloadingServerApp(ConsoleApp):
             url += ":" + str(port)
         return url
 
-    def shutdown(self, exit_code: Optional[int] = 0, error_message: str = "", timeout: Optional[float] = None
+    def shutdown(self, exit_code: int | None = 0, error_message: str = "", timeout: float | None = None
                  ):     # pragma: no cover
         """ overwritten to stop any running sideloading server instance/threads on shutdown of this app instance.
 
@@ -341,22 +345,22 @@ class SideloadingServerApp(ConsoleApp):
             ThreadingHTTPServer.allow_reuse_address = True
             SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
             # noinspection PyTypeChecker
-            self.server_instance = ThreadingHTTPServer(server_address, SimpleHTTPRequestHandler)
-            self.server_instance.timeout = SHUTDOWN_TIMEOUT
+            self.server_instance = instance = ThreadingHTTPServer(server_address, SimpleHTTPRequestHandler)
+            instance.timeout = SHUTDOWN_TIMEOUT
 
             self.log('verbose', f"{pre}: {self.sideloading_file_path=} {server_address=}"
-                                f"/{self.server_instance.server_address}"
-                                f"/{self.server_instance.socket.getsockname()}")
-            tct = threading.current_thread()
+                                f"/{instance.server_address}"
+                                f"/{instance.socket.getsockname()}")
+            old_thread = threading.current_thread()
             if threaded:
                 # start a thread with the server -- that thread will then start one more thread for each request
-                self.server_thread = threading.Thread(name="SideloadingTrd", target=self.server_instance.serve_forever)
-                self.server_thread.start()
-                self.log('verbose', f"{pre}: started server from {tct.name=} in {self.server_thread.name=}")
+                self.server_thread = new_thread = threading.Thread(name="SideloadingTrd", target=instance.serve_forever)
+                new_thread.start()
+                self.log('verbose', f"{pre}: started server from {old_thread.name=} in {new_thread.name=}")
             else:
-                self.log('verbose', f"{pre}: starting server loop; blocking this main {tct.name=}")
-                self.server_thread = tct
-                self.server_instance.serve_forever()
+                self.log('verbose', f"{pre}: starting server loop; blocking this main {old_thread.name=}")
+                self.server_thread = old_thread
+                instance.serve_forever()
 
         except (IOError, OSError, Exception) as ex:                 # pylint: disable=broad-exception-caught
             err_msg = f"{pre}: exception {ex}"
@@ -377,21 +381,18 @@ class SideloadingServerApp(ConsoleApp):
         self.log('verbose', f"{pre}")
 
         if getattr(self, 'server_instance', False) and getattr(self, 'server_thread', False):
-            if self.server_thread == threading.current_thread():                # pragma: no cover
+            if self.server_thread == threading.current_thread() and self.server_instance:   # pragma: no cover
                 thread = threading.Thread(name="StopSideloadingServerThread", target=self.server_instance.shutdown)
                 thread.start()
                 thread.join(timeout=SHUTDOWN_TIMEOUT)
                 if thread.is_alive():
                     self.log('print', f"{pre}: server shutdown thread join timed out")
             else:
-                self.server_instance.shutdown()
-                self.server_thread.join(timeout=SHUTDOWN_TIMEOUT)
-                if self.server_thread.is_alive():
-                    self.log('print', f"{pre}: server thread join timed out")   # pragma: no cover
+                if self.server_instance:
+                    self.server_instance.shutdown()
+                if self.server_thread:
+                    self.server_thread.join(timeout=SHUTDOWN_TIMEOUT)
+                    if self.server_thread.is_alive():
+                        self.log('print', f"{pre}: server thread join timed out")   # pragma: no cover
+
         self.server_instance = self.server_thread = None
-
-
-if __name__ == '__main__':              # pragma: no cover
-    server_app = server_factory()
-    server_app.run_app()
-    server_app.start_server()
