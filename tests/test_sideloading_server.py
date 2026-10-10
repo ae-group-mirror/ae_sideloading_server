@@ -6,7 +6,7 @@ import time
 
 from io import BytesIO
 from socket import socket
-from unittest.mock import MagicMock
+from unittest.mock import patch, MagicMock
 
 from ae.base import defuse
 from ae.system import os_local_ip
@@ -16,7 +16,9 @@ from ae.console import ConsoleApp
 
 
 from ae.sideloading_server import (
-    SERVER_PORT, SOCKET_BUF_LEN, content_disposition_file_name, server_factory, SideloadingServerApp)
+    SERVER_PORT, SOCKET_BUF_LEN,
+    clients_lock, content_disposition_file_name, requests_lock, server_factory,
+    SideloadingServerApp)
 
 
 tst_apk_content = "tst_apk_content"
@@ -26,6 +28,7 @@ tst_apk_content = "tst_apk_content"
 def threaded_server(restore_app_env):
     """ yielding an instantiated and started server app. """
     app = server_factory()
+    app.set_option('port', 0, save_to_config=False)  # let the OS choose a free/unused port number
     app.run_app()
     PATH_PLACEHOLDERS['downloads'] = "tests"
     test_downloadable = normalize(os.path.join("{downloads}", "sideloading_server.apk"))
@@ -35,6 +38,8 @@ def threaded_server(restore_app_env):
     yield app
 
     app.stop_server()
+    assert app.server_instance is None     # sanity check: is the new instance really fully&correctly cleared
+    assert app.server_thread is None
     os.remove(test_downloadable)
     while app.server_instance or app.server_thread:
         time.sleep(0.6)
@@ -181,7 +186,15 @@ class TestSideloadingServerApp:
     def test_server_url(self, threaded_server):
         assert threaded_server.server_url()
 
+    def test_shutdown(self, threaded_server):
+        with patch('ae.console.ConsoleApp.shutdown') as mock_shutdown:
+            threaded_server.shutdown()
+
+        mock_shutdown.assert_called_once()
+
     def test_start_server(self, restore_app_env):
+        clients_lock.acquire()
+        requests_lock.acquire()
         app = server_factory()
         PATH_PLACEHOLDERS['downloads'] = "tests"
         test_downloadable = normalize(os.path.join("{downloads}", "sideloading_server.apk"))
@@ -207,3 +220,40 @@ class TestSideloadingServerApp:
         app.set_option('bind', ":invalid bind address:", save_to_config=False)
         app.set_option('port', ":invalid port:", save_to_config=False)
         assert app.start_server(file_mask=os.path.join("tests", "conftest.py"), threaded=True)
+
+    def test_stop_server_release_locks(self, capsys, threaded_server):
+        clients_lock.acquire()
+        requests_lock.acquire()
+
+        threaded_server.stop_server()
+
+        assert threaded_server.server_instance is None
+        assert threaded_server.server_thread is None
+        out, err = capsys.readouterr()
+        assert "released requests lock" in out
+
+    def test_stop_server_stop_thread(self, capsys, threaded_server):
+        mock_thread = MagicMock(spec=threading.Thread)
+        # noinspection PyUnresolvedReferences
+        threaded_server.server_instance.shutdown()  # stop threaded_server test thread before stop thread unit test
+
+        with (patch('ae.sideloading_server.threading.current_thread', return_value=threaded_server.server_thread),
+              patch('ae.sideloading_server.threading.Thread', return_value=mock_thread)):
+            threaded_server.stop_server()
+
+        mock_thread.start.assert_called_once()
+        mock_thread.join.assert_called_once()
+        mock_thread.is_alive.assert_called_once()
+        assert threaded_server.server_instance is None
+        assert threaded_server.server_thread is None
+        out, err = capsys.readouterr()
+        assert "server shutdown thread join timed out" in out
+
+    def test_stop_server_timed_out(self, capsys, threaded_server):
+        with patch.object(threaded_server.server_thread, 'is_alive'):
+            threaded_server.stop_server()
+
+        assert threaded_server.server_instance is None
+        assert threaded_server.server_thread is None
+        out, err = capsys.readouterr()
+        assert "server thread join timed out" in out

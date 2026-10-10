@@ -59,17 +59,17 @@ import threading
 
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer     # ThreadingHTTPServer available in Python>=3.7
-from typing import Any
+from typing import cast, Any
 from urllib.parse import quote
 
-from ae.base import DATE_TIME_ISO, dummy_function, os_path_basename                 # type: ignore
+from ae.base import DATE_TIME_ISO, URI_SVC_SEP, dummy_function, os_path_basename    # type: ignore
 from ae.system import os_local_ip                                                   # type: ignore
 from ae.files import copy_bytes                                                     # type: ignore
 from ae.paths import normalize                                                      # type: ignore
 from ae.console import ConsoleApp                                                   # type: ignore
 
 
-__version__ = '0.3.20'
+__version__ = '0.3.21'
 
 
 DEFAULT_APK_FILE_MASK = "{downloads}/{main_app_name}*.apk"  #: default glob file mask to sideloading file
@@ -156,17 +156,17 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def log_request(self, code='-', size='-'):
         """ overwrite to prevent console output if not in debug mode. """
         if not server_app or server_app.debug:
-            super().log_request(code=code, size=size)       # pragma: no cover
+            super().log_request(code=code, size=size)
 
 
 class SideloadingServerApp(ConsoleApp):
     """ server service app class """
-    client_handlers: dict[str, SimpleHTTPRequestHandler]                    #: handler for each active client connection
-    sideloading_file_path: str                                              #: path to the found sideloading file
-    load_requests: list[SideloadingKwargs]                                  #: sideloading requests and error/debug log
-    progress_callback: Callable = dummy_function                            #: progress event callback
-    server_instance: ThreadingHTTPServer | None                             #: server class instance
-    server_thread: threading.Thread | None                                  #: server thread (main or separate thread)
+    client_handlers: dict[str, SimpleHTTPRequestHandler]  #: handler for each active client connection
+    sideloading_file_path: str                          #: path to the found sideloading file
+    load_requests: list[SideloadingKwargs]              #: sideloading requests and error/debug log
+    progress_callback: Callable = dummy_function        #: progress event callback
+    server_instance: ThreadingHTTPServer | None         #: server class instance (created by :meth:`.start_server`)
+    server_thread: threading.Thread | None              #: server thread (main or separate thread)
 
     def client_progress(self, client_ip: str) -> tuple[int, int]:
         """ determine sideloading progress (transferred bytes) for the client with the passed ip address.
@@ -177,9 +177,11 @@ class SideloadingServerApp(ConsoleApp):
         :return:                tuple of two int values: status and file size of the sideloading file.
                                 a positive status value signifies the number of already transferred bytes.
                                 A negative value in this first int signals an error. possible error codes are:
+
                                 * -1 if the sideloading task did not start yet
                                 * -2 if not exists or the sideloading task has already finished
                                 * -3 if the default
+
                                 please note that the file size given in the second int can be 0 if an error has occurred
                                 or if the sideloading task is not yet fully created/started.
         """
@@ -277,14 +279,13 @@ class SideloadingServerApp(ConsoleApp):
         :return:                server url string.
         """
         # noinspection HttpUrlsUsage
-        url = "http://" + os_local_ip()
+        url = f"http{URI_SVC_SEP}{os_local_ip()}"
         port = self.get_option('port')
         if port != 80:
             url += ":" + str(port)
         return url
 
-    def shutdown(self, exit_code: int | None = 0, error_message: str = "", timeout: float | None = None
-                 ):     # pragma: no cover
+    def shutdown(self, exit_code: int | None = 0, error_message: str = "", timeout: float | None = None):
         """ overwritten to stop any running sideloading server instance/threads on shutdown of this app instance.
 
                 :param exit_code:       set application OS exit code - see :meth:`~ae.core.AppBase.shutdown`.
@@ -324,10 +325,10 @@ class SideloadingServerApp(ConsoleApp):
         self.client_handlers = {}
         self.load_requests = []
 
-        if requests_lock.locked():  # pragma: no cover
+        if requests_lock.locked():
             requests_lock.release()             # release before self.log() call (new acquiring)
             self.log('print', f"{pre}: released requests lock")
-        if clients_lock.locked():   # pragma: no cover
+        if clients_lock.locked():
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
 
@@ -372,27 +373,31 @@ class SideloadingServerApp(ConsoleApp):
     def stop_server(self):
         """ stop/pause sideloading server - callable also if not running to reset/prepare this app instance. """
         pre = "SideloadingServerApp.stop_server()"
-        if requests_lock.locked():  # pragma: no cover
-            requests_lock.release()             # release before self.log() call (new acquiring)
+        if requests_lock.locked():
+            requests_lock.release()                     # release before self.log() call (new acquiring)
             self.log('print', f"{pre}: released requests lock")
-        if clients_lock.locked():   # pragma: no cover
+        if clients_lock.locked():
             self.log('print', f"{pre}: releasing clients lock")
             clients_lock.release()
         self.log('verbose', f"{pre}")
 
-        if getattr(self, 'server_instance', False) and getattr(self, 'server_thread', False):
-            if self.server_thread == threading.current_thread() and self.server_instance:   # pragma: no cover
-                thread = threading.Thread(name="StopSideloadingServerThread", target=self.server_instance.shutdown)
+        if getattr(self, 'server_instance', False) and getattr(self, 'server_thread', False):   # no start_server()-call
+            srv_instance = cast(ThreadingHTTPServer, self.server_instance)
+            srv_thread = cast(threading.Thread, self.server_thread)
+            if srv_thread == threading.current_thread() and srv_instance:
+                thread = threading.Thread(name="StopSideloadingServerThread", target=srv_instance.shutdown)
                 thread.start()
                 thread.join(timeout=SHUTDOWN_TIMEOUT)
                 if thread.is_alive():
                     self.log('print', f"{pre}: server shutdown thread join timed out")
             else:
-                if self.server_instance:
-                    self.server_instance.shutdown()
-                if self.server_thread:
-                    self.server_thread.join(timeout=SHUTDOWN_TIMEOUT)
-                    if self.server_thread.is_alive():
-                        self.log('print', f"{pre}: server thread join timed out")   # pragma: no cover
+                if srv_instance:
+                    srv_instance.shutdown()
+                if srv_thread:
+                    srv_thread.join(timeout=SHUTDOWN_TIMEOUT)
+                    if srv_thread.is_alive():
+                        self.log('print', f"{pre}: server thread join timed out")
+
+            srv_instance.server_close()  # close socket and release port
 
         self.server_instance = self.server_thread = None
