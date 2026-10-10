@@ -1,12 +1,12 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.104 -->
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.31 -->
-# sideloading_server 0.3.20
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.110 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.33 -->
+# sideloading_server 0.3.21
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/develop?logo=python)](
     https://gitlab.com/ae-group/ae_sideloading_server)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.3.20?logo=python)](
-    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.3.20)
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_sideloading_server/release0.3.21?logo=python)](
+    https://gitlab.com/ae-group/ae_sideloading_server/-/tree/release0.3.21)
 [![PyPIVersions](https://img.shields.io/pypi/v/ae_sideloading_server)](
     https://pypi.org/project/ae-sideloading-server/#history)
 
